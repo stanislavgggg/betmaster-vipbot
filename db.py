@@ -41,6 +41,13 @@ CREATE TABLE IF NOT EXISTS requests (
     decided_by    INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS admin_messages (
+    request_id INTEGER NOT NULL,
+    chat_id    INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    PRIMARY KEY (request_id, chat_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_requests_user   ON requests(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
 """
@@ -191,12 +198,28 @@ class Database:
         )
         await self.conn.commit()
 
-    async def set_admin_message(self, request_id: int, chat_id: int, msg_id: int) -> None:
+    async def add_admin_message(self, request_id: int, chat_id: int, msg_id: int) -> None:
+        """A request is posted to every admin chat — remember each copy so all
+        of them can be updated once somebody decides."""
         await self.conn.execute(
-            "UPDATE requests SET admin_chat_id = ?, admin_msg_id = ? WHERE id = ?",
+            """
+            INSERT INTO admin_messages (request_id, chat_id, message_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT(request_id, chat_id) DO UPDATE SET message_id = excluded.message_id
+            """,
+            (request_id, chat_id, msg_id),
+        )
+        await self.conn.execute(
+            "UPDATE requests SET admin_chat_id = ?, admin_msg_id = ? WHERE id = ? AND admin_msg_id IS NULL",
             (chat_id, msg_id, request_id),
         )
         await self.conn.commit()
+
+    async def admin_messages(self, request_id: int) -> list[tuple[int, int]]:
+        cur = await self.conn.execute(
+            "SELECT chat_id, message_id FROM admin_messages WHERE request_id = ?", (request_id,)
+        )
+        return [(r["chat_id"], r["message_id"]) for r in await cur.fetchall()]
 
     async def decide(self, request_id: int, status: str, admin_id: int) -> None:
         await self.conn.execute(
