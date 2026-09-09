@@ -26,7 +26,7 @@ def _int_list(raw: str) -> list[int]:
 class Settings:
     bot_token: str
     admin_ids: list[int]
-    admin_chat_id: int          # group/channel where requests land for review
+    admin_chat_ids: list[int]   # chats where requests land for review (group and/or admin DMs)
     vip_chat_id: int            # the VIP channel/group users get invited to
     db_path: str
     brands_file: Path
@@ -41,16 +41,16 @@ class Settings:
         admin_ids = _int_list(os.getenv("ADMIN_IDS", ""))
         if not admin_ids:
             raise RuntimeError("ADMIN_IDS is not set (comma-separated Telegram user IDs)")
-        admin_chat = os.getenv("ADMIN_CHAT_ID", "").strip()
+        # One group ID, or several IDs (admin DMs) separated by commas.
+        # Falls back to ADMIN_IDS so requests always land somewhere.
+        admin_chat_ids = _int_list(os.getenv("ADMIN_CHAT_ID", "")) or list(admin_ids)
         vip_chat = os.getenv("VIP_CHAT_ID", "").strip()
-        if not admin_chat:
-            raise RuntimeError("ADMIN_CHAT_ID is not set")
         if not vip_chat:
             raise RuntimeError("VIP_CHAT_ID is not set")
         return cls(
             bot_token=token,
             admin_ids=admin_ids,
-            admin_chat_id=int(admin_chat),
+            admin_chat_ids=admin_chat_ids,
             vip_chat_id=int(vip_chat),
             db_path=os.getenv("DB_PATH", "bot.db"),
             brands_file=Path(os.getenv("BRANDS_FILE", "brands.json")),
