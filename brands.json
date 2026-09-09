@@ -1,0 +1,76 @@
+{
+  "vip": {
+    "name": "BETSMASTER VIP",
+    "free_days": 30
+  },
+  "brands": {
+    "slotoro": {
+      "name": "Slotoro",
+      "min_deposit": "20 EUR",
+      "link": "https://slotorooffer.com/l/691aea20f061e341f606f1f2",
+      "subid_param": "sub1",
+      "note": ""
+    },
+    "ggbet": {
+      "name": "GGBet",
+      "min_deposit": "20 EUR",
+      "link": "https://ggbet-promo.com/l/67ff851dcb1c5065ae0ce725",
+      "subid_param": "sub1",
+      "note": ""
+    },
+    "spinbetter": {
+      "name": "SpinBetter",
+      "min_deposit": "20 EUR",
+      "link": "https://spinbetter.example/l/REPLACE_ME",
+      "subid_param": "sub1",
+      "note": ""
+    }
+  },
+  "regions": [
+    {
+      "code": "eu",
+      "title": "Europe",
+      "emoji": "🇪🇺",
+      "brands": ["slotoro", "ggbet", "spinbetter"]
+    },
+    {
+      "code": "uk",
+      "title": "UK",
+      "emoji": "🇬🇧",
+      "brands": [
+        "slotoro",
+        { "code": "ggbet", "link": "https://ggbet-promo.com/l/REPLACE_UK_LINK" }
+      ]
+    },
+    {
+      "code": "asia",
+      "title": "Asia",
+      "emoji": "🌏",
+      "brands": ["ggbet", "spinbetter"]
+    },
+    {
+      "code": "africa",
+      "title": "Africa",
+      "emoji": "🌍",
+      "brands": ["ggbet", "spinbetter"]
+    },
+    {
+      "code": "na",
+      "title": "North America",
+      "emoji": "🌎",
+      "brands": ["spinbetter"]
+    },
+    {
+      "code": "sa",
+      "title": "South America",
+      "emoji": "🌎",
+      "brands": ["spinbetter"]
+    },
+    {
+      "code": "other",
+      "title": "Other",
+      "emoji": "🏳️",
+      "brands": ["ggbet", "spinbetter"]
+    }
+  ]
+}
