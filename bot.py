@@ -60,6 +60,60 @@ async def safe_send(bot: Bot, chat_id: int, text: str, **kwargs) -> Message | No
     return None
 
 
+async def render_request_caption(request: store.Request) -> str:
+    """Caption shown in every admin chat for a request."""
+    user_row = await database.get_user(request.user_id)
+    region = catalog.region(request.region)
+    username = user_row["username"] if user_row and user_row["username"] else None
+    return t.ADMIN_REQUEST.format(
+        rid=request.id,
+        name=(user_row["first_name"] if user_row and user_row["first_name"] else "—"),
+        user_id=request.user_id,
+        username=f"@{username}" if username else "",
+        region=region.title if region else request.region,
+        brand=catalog.brand_name(request.region, request.brand_code),
+        source=(user_row["source"] if user_row and user_row["source"] else "direct"),
+        created=fmt_ts(request.created_at),
+    )
+
+
+async def fanout_to_admins(bot: Bot, request: store.Request, file_id: str, caption: str) -> int:
+    """Post the request to every admin chat. Returns how many copies were delivered."""
+    delivered = 0
+    for chat_id in settings.admin_chat_ids:
+        try:
+            sent = await bot.send_photo(
+                chat_id,
+                photo=file_id,
+                caption=caption,
+                reply_markup=kb.review_kb(request.id),
+            )
+            await database.add_admin_message(request.id, sent.chat.id, sent.message_id)
+            delivered += 1
+        except TelegramForbiddenError:
+            log.warning("Admin chat %s unreachable — they must /start the bot first", chat_id)
+        except TelegramAPIError as exc:
+            log.error("Could not post request #%s to %s: %s", request.id, chat_id, exc)
+    if not delivered:
+        log.error("Request #%s reached nobody — check ADMIN_CHAT_ID", request.id)
+    return delivered
+
+
+async def close_admin_copies(bot: Bot, request: store.Request, stamp: str) -> None:
+    """After a decision, stamp every copy and strip the buttons so nobody double-handles it."""
+    caption = await render_request_caption(request) + stamp
+    for chat_id, message_id in await database.admin_messages(request.id):
+        try:
+            await bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=message_id,
+                caption=caption,
+                reply_markup=None,
+            )
+        except TelegramAPIError as exc:
+            log.debug("Could not update copy %s/%s: %s", chat_id, message_id, exc)
+
+
 async def send_main_menu(message: Message) -> None:
     await message.answer(
         t.WELCOME.format(vip_name=catalog.vip_name),
@@ -262,30 +316,8 @@ async def on_screenshot(message: Message, bot: Bot) -> None:
     await database.attach_photo(request.id, file_id)
 
     brand_name = catalog.brand_name(request.region, request.brand_code)
-    region = catalog.region(request.region)
-    user_row = await database.get_user(user.id)
-
-    caption = t.ADMIN_REQUEST.format(
-        rid=request.id,
-        name=user.full_name,
-        user_id=user.id,
-        username=f"@{user.username}" if user.username else "",
-        region=region.title if region else request.region,
-        brand=brand_name,
-        source=(user_row["source"] if user_row and user_row["source"] else "direct"),
-        created=fmt_ts(store.now()),
-    )
-
-    try:
-        sent = await bot.send_photo(
-            settings.admin_chat_id,
-            photo=file_id,
-            caption=caption,
-            reply_markup=kb.review_kb(request.id),
-        )
-        await database.set_admin_message(request.id, sent.chat.id, sent.message_id)
-    except TelegramAPIError as exc:
-        log.error("Could not post request #%s to admin chat: %s", request.id, exc)
+    caption = await render_request_caption(request)
+    await fanout_to_admins(bot, request, file_id, caption)
 
     reply = t.SCREENSHOT_RECEIVED.format(brand=brand_name)
     nxt = await database.next_awaiting(user.id)
@@ -378,13 +410,7 @@ async def cb_review(call: CallbackQuery, bot: Bot) -> None:
         admin=f"@{call.from_user.username}" if call.from_user.username else call.from_user.full_name,
         when=fmt_ts(store.now()),
     )
-    if isinstance(call.message, Message):
-        try:
-            await call.message.edit_caption(
-                caption=(call.message.caption or "") + stamp, reply_markup=None
-            )
-        except TelegramAPIError:
-            pass
+    await close_admin_copies(bot, request, stamp)
     await call.answer("Approved" if approved else "Rejected")
 
 
@@ -618,8 +644,10 @@ async def main() -> None:
 
     await database.connect()
     me = await bot.get_me()
-    log.info("Starting @%s | %d regions | admin chat %s",
-             me.username, len(catalog.regions), settings.admin_chat_id)
+    log.info("Starting @%s | %d regions | %d admin chat(s): %s",
+             me.username, len(catalog.regions),
+             len(settings.admin_chat_ids),
+             ", ".join(str(c) for c in settings.admin_chat_ids))
 
     watchdog = asyncio.create_task(vip_watchdog(bot))
     try:
