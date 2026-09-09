@@ -25,7 +25,7 @@ Request state lives in the DB, not in FSM memory, so a redeploy never loses a pe
 ## Setup
 
 1. **Bot** — create it with @BotFather, copy the token. In BotFather turn **Group Privacy off** only if you plan to read group messages (not needed here).
-2. **Admin group** — create a private group, add the bot, post `/id` to get the chat ID (starts with `-100`).
+2. **Where requests land** — `ADMIN_CHAT_ID` takes either one group ID (create a private group, add the bot, post `/id@yourbot`, ID starts with `-100`) **or several personal IDs separated by commas**, in which case every admin gets their own copy in DM. Leave it empty and it falls back to `ADMIN_IDS`.
 3. **VIP channel** — add the bot as admin with **Invite users via link** and **Ban users** permissions. Post `/id` there (or forward a message) to get its ID.
 4. **Your user ID** — send `/id` to the bot in DM.
 5. Copy `.env.example` → `.env` and fill in the values.
@@ -85,6 +85,8 @@ Set `subid_param` per brand if a network uses a different parameter name (`sub_i
 - **"Registered in all"** opens a request per brand in the region and queues them — each screenshot the user sends is matched to the next brand in the queue.
 - **Duplicate protection**: one open request per brand per user; already-approved brands can't be claimed twice.
 - **Expiry**: an hourly watchdog removes users whose free period ended (ban + immediate unban, so they can rejoin later) and messages them to renew. Set `AUTO_KICK_EXPIRED=false` to only notify.
+- **Multiple admins**: the request is posted to every chat in `ADMIN_CHAT_ID`. The first person to press a button wins — all other copies get stamped with the decision and lose their buttons, so nobody handles the same screenshot twice.
+- An admin only receives DM copies after they have pressed `/start` on the bot at least once; Telegram blocks bots from writing first.
 - **Rejections** send a canned message; use `/note` to add a specific reason.
 - Approving a second brand for the same user **extends** access rather than resetting it.
 
