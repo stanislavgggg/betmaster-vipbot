@@ -117,7 +117,7 @@ async def close_admin_copies(bot: Bot, request: store.Request, stamp: str) -> No
 async def send_main_menu(message: Message) -> None:
     await message.answer(
         t.WELCOME.format(vip_name=catalog.vip_name),
-        reply_markup=kb.main_menu(),
+        reply_markup=kb.main_menu(catalog.regions),
     )
 
 
@@ -131,7 +131,7 @@ async def send_brand_card(message: Message, region_code: str, brand_code: str,
     await message.answer(
         t.BRAND_CARD.format(
             brand=brand.name,
-            min_deposit=brand.min_deposit or "—",
+            min_deposit=brand.min_deposit or catalog.min_deposit or "—",
             link=url,
             note=note,
         ),
@@ -197,7 +197,7 @@ async def cmd_cancel(message: Message) -> None:
     if message.from_user is None:
         return
     count = await database.cancel_open(message.from_user.id)
-    await message.answer(t.CANCELLED.format(count=count), reply_markup=kb.main_menu())
+    await message.answer(t.CANCELLED.format(count=count), reply_markup=kb.main_menu(catalog.regions))
 
 
 @router.callback_query(F.data == "nav:menu")
@@ -227,9 +227,7 @@ async def cb_region_selected(call: CallbackQuery) -> None:
         return
     await database.set_region(call.from_user.id, region_code)
     await call.message.answer(
-        t.REGION_SELECTED.format(
-            region=region.title, emoji=region.emoji, days=catalog.free_days
-        ),
+        t.REGION_SELECTED.format(min_deposit=catalog.min_deposit or "—"),
         reply_markup=kb.brands_kb(region),
     )
 
@@ -278,16 +276,16 @@ async def cb_pending(call: CallbackQuery) -> None:
         return
     requests = await database.open_requests(call.from_user.id)
     if not requests:
-        await call.message.answer(t.NO_OPEN_REQUESTS, reply_markup=kb.main_menu())
+        await call.message.answer(t.NO_OPEN_REQUESTS, reply_markup=kb.main_menu(catalog.regions))
         return
     lines = [t.OPEN_REQUESTS_HEADER]
     for req in requests:
         icon = "⏳" if req.status == store.AWAITING else "🔍"
-        state = "waiting for your screenshot" if req.status == store.AWAITING else "under review"
+        state = t.REQ_WAITING if req.status == store.AWAITING else t.REQ_REVIEW
         lines.append(
             f"{icon} <b>{catalog.brand_name(req.region, req.brand_code)}</b> — {state}"
         )
-    await call.message.answer("\n".join(lines), reply_markup=kb.main_menu())
+    await call.message.answer("\n".join(lines), reply_markup=kb.main_menu(catalog.regions))
 
 
 @router.callback_query(F.data == "menu:cancel")
@@ -296,7 +294,7 @@ async def cb_cancel(call: CallbackQuery) -> None:
     if not isinstance(call.message, Message) or call.from_user is None:
         return
     count = await database.cancel_open(call.from_user.id)
-    await call.message.answer(t.CANCELLED.format(count=count), reply_markup=kb.main_menu())
+    await call.message.answer(t.CANCELLED.format(count=count), reply_markup=kb.main_menu(catalog.regions))
 
 
 # --------------------------------------------------------------------------- screenshots
@@ -309,7 +307,7 @@ async def on_screenshot(message: Message, bot: Bot) -> None:
 
     request = await database.next_awaiting(user.id)
     if request is None:
-        await message.answer(t.NO_PENDING_FOR_PHOTO, reply_markup=kb.main_menu())
+        await message.answer(t.NO_PENDING_FOR_PHOTO, reply_markup=kb.main_menu(catalog.regions))
         return
 
     file_id = message.photo[-1].file_id if message.photo else message.document.file_id
@@ -325,7 +323,7 @@ async def on_screenshot(message: Message, bot: Bot) -> None:
         reply += t.SCREENSHOT_NEXT.format(
             brand=catalog.brand_name(nxt.region, nxt.brand_code)
         )
-    await message.answer(reply, reply_markup=kb.main_menu())
+    await message.answer(reply, reply_markup=kb.main_menu(catalog.regions))
 
 
 @router.message(F.chat.type == "private", F.text, ~F.text.startswith("/"))
@@ -361,12 +359,18 @@ async def grant_access(bot: Bot, request: store.Request) -> None:
     except TelegramAPIError as exc:
         log.error("Invite link for request #%s failed: %s", request.id, exc)
 
-    if invite:
-        text = t.APPROVED_USER.format(
+    if invite and until:
+        text = t.APPROVED_USER_UNTIL.format(
             brand=brand_name,
             vip_name=catalog.vip_name,
             invite=invite,
             until=fmt_ts(until),
+        )
+    elif invite:
+        text = t.APPROVED_USER.format(
+            brand=brand_name,
+            vip_name=catalog.vip_name,
+            invite=invite,
         )
     else:
         text = t.APPROVED_NO_LINK.format(brand=brand_name)
@@ -550,10 +554,14 @@ async def cmd_grant(message: Message, command: CommandObject, bot: Bot) -> None:
         )
         await safe_send(
             bot, uid,
-            f"✅ VIP access granted until <b>{fmt_ts(until)}</b>.\n{link.invite_link}",
+            (f"✅ VIP access granted until <b>{fmt_ts(until)}</b>.\n{link.invite_link}"
+             if until else f"✅ VIP access granted.\n{link.invite_link}"),
             disable_web_page_preview=True,
         )
-        await message.answer(f"Granted {days} days to <code>{uid}</code>, invite sent.")
+        await message.answer(
+            f"Granted {'lifetime' if days <= 0 else str(days) + ' days'} "
+            f"to <code>{uid}</code>, invite sent."
+        )
     except TelegramAPIError as exc:
         await message.answer(f"Granted, but invite failed: {exc}")
 
@@ -624,8 +632,8 @@ async def vip_watchdog(bot: Bot) -> None:
                         log.warning("Could not remove expired user %s: %s", uid, exc)
                 await safe_send(
                     bot, uid,
-                    t.VIP_EXPIRED.format(days=catalog.free_days, vip_name=catalog.vip_name),
-                    reply_markup=kb.main_menu(),
+                    t.VIP_EXPIRED.format(vip_name=catalog.vip_name),
+                    reply_markup=kb.main_menu(catalog.regions),
                 )
         except Exception:  # noqa: BLE001 - never let the loop die
             log.exception("watchdog iteration failed")

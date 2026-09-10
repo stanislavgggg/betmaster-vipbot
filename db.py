@@ -119,7 +119,14 @@ class Database:
         await self.conn.execute("UPDATE users SET region = ? WHERE user_id = ?", (region, user_id))
         await self.conn.commit()
 
-    async def grant_vip(self, user_id: int, days: int) -> int:
+    async def grant_vip(self, user_id: int, days: int) -> int | None:
+        """days <= 0 grants access with no expiry date."""
+        if days <= 0:
+            await self.conn.execute(
+                "UPDATE users SET vip_until = NULL, vip_active = 1 WHERE user_id = ?", (user_id,)
+            )
+            await self.conn.commit()
+            return None
         row = await self.get_user(user_id)
         base = now()
         if row and row["vip_until"] and row["vip_until"] > base:

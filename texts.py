@@ -1,95 +1,110 @@
-"""All user-facing copy lives here — swap this file to localise the bot (LT / LV / ES ...)."""
+"""User-facing copy (Croatian). Admin-side strings stay in English."""
+
+# ---- user side (HR) ----
 
 WELCOME = (
-    "👋 <b>Welcome to {vip_name} Bot!</b>\n\n"
-    "Choose an option below:"
+    "👋 Pozdrav, hvala vam na poruci i interesu za <b>{vip_name} grupu</b>.\n\n"
+    "<b>Dobrodošli! Odaberite svoju zemlju:</b>"
 )
 
-CHOOSE_REGION = "Welcome! Please select your region:"
+CHOOSE_REGION = "<b>Odaberite svoju zemlju:</b>"
 
 REGION_SELECTED = (
-    "You selected <b>{region}</b> {emoji}\n\n"
-    "Choose one of our partner brands to register and get your "
-    "<b>{days}-day free VIP access</b>:"
+    "Kako biste se <b>BESPLATNO</b> pridružili VIP kanalu, potrebno je registrirati se "
+    "kod jednog od partnera u nastavku i uplatiti minimalno <b>{min_deposit}</b>. "
+    "Tako ćete moći pratiti i igrati iste oklade zajedno sa mnom. "
+    "Za pristup VIP kanalu <b>nema dodatnih plaćanja</b>.\n\n"
+    "👇 <b>Odaberite partnera kod kojeg se želite registrirati i ostvarite "
+    "besplatan VIP pristup:</b>"
 )
 
 BRAND_CARD = (
-    "🎰 <b>Brand:</b> {brand}\n\n"
-    "💰 <b>Minimum Deposit:</b> {min_deposit}\n"
-    "🔗 <b>Link:</b> {link}\n"
+    "🎰 <b>Brend:</b> {brand}\n\n"
+    "💰 <b>Minimalna uplata:</b> {min_deposit}\n"
+    "🔗 <b>Link:</b> <a href=\"{link}\">Registriraj se ovdje</a>\n"
     "{note}"
-    "\n<b>Instructions:</b> Register through the link above, make your deposit, "
-    "then send a screenshot here!"
+    "\n<b>Upute:</b> Registrirajte se putem poveznice iznad, uplatite minimalno "
+    "{min_deposit}, a zatim ovdje pošaljite screenshot kao potvrdu."
 )
 
 PENDING_HINT = (
-    "⏳ You have a pending screenshot request for <b>{brand}</b>. "
-    "Send your screenshot or type /cancel to cancel."
+    "⏳ Čekamo vaš screenshot za <b>{brand}</b>. "
+    "Pošaljite screenshot ili upišite /cancel za otkazivanje."
 )
 
 ALL_BRANDS_STARTED = (
-    "📋 Requests opened for: <b>{brands}</b>\n\n"
-    "Send your screenshots one by one — I'll match each one to the next brand in the queue."
+    "📋 Otvoreni zahtjevi za: <b>{brands}</b>\n\n"
+    "Šaljite screenshotove jedan po jedan — svaki ću povezati sa sljedećim brendom u redu."
 )
 
 ALREADY_REQUESTED = (
-    "ℹ️ You already have an open request for <b>{brand}</b>. "
-    "Send the screenshot, or use ❌ Cancel Requests to start over."
+    "ℹ️ Već imate otvoren zahtjev za <b>{brand}</b>. "
+    "Pošaljite screenshot ili odaberite ❌ Otkaži zahtjeve za novi početak."
 )
 
-ALREADY_APPROVED = "✅ <b>{brand}</b> is already approved for your account."
+ALREADY_APPROVED = "✅ <b>{brand}</b> je već odobren za vaš račun."
 
-NO_OPEN_REQUESTS = "You have no open requests. Tap 🎰 Get VIP to start."
+NO_OPEN_REQUESTS = "Nemate otvorenih zahtjeva. Odaberite zemlju ispod za početak."
 
-OPEN_REQUESTS_HEADER = "📋 <b>Your requests:</b>\n\n"
+OPEN_REQUESTS_HEADER = "📋 <b>Vaši zahtjevi:</b>\n\n"
 
-CANCELLED = "❌ Cancelled {count} pending request(s)."
+REQ_WAITING = "čeka vaš screenshot"
+REQ_REVIEW = "u provjeri"
+
+CANCELLED = "❌ Otkazano zahtjeva: {count}."
 
 SCREENSHOT_RECEIVED = (
-    "📨 Screenshot for <b>{brand}</b> received and sent for review.\n"
-    "You'll get a reply here as soon as it's checked."
+    "📨 Screenshot za <b>{brand}</b> je zaprimljen i poslan na provjeru.\n"
+    "Javit ćemo vam se ovdje čim bude provjeren."
 )
 
-SCREENSHOT_NEXT = "\n\n⏳ Next in queue: <b>{brand}</b>. Send that screenshot when ready."
+SCREENSHOT_NEXT = "\n\n⏳ Sljedeći na redu: <b>{brand}</b>. Pošaljite taj screenshot kada budete spremni."
 
 NO_PENDING_FOR_PHOTO = (
-    "I'm not expecting a screenshot right now. Tap 🎰 Get VIP, pick a brand, "
-    "and send the screenshot after you deposit."
+    "Trenutno ne očekujem screenshot. Odaberite zemlju i partnera ispod, "
+    "a screenshot pošaljite nakon uplate."
 )
 
 APPROVED_USER = (
-    "✅ <b>Approved!</b> Your deposit on <b>{brand}</b> has been confirmed.\n\n"
-    "Here is your personal invite link to {vip_name} (valid for 24 hours, one use only):\n"
+    "✅ <b>Odobreno!</b> Vaša uplata na <b>{brand}</b> je potvrđena.\n\n"
+    "Evo vaše osobne poveznice za {vip_name} (vrijedi 24 sata, jednokratna):\n"
     "{invite}\n\n"
-    "Your access runs until <b>{until}</b>."
+    "Dobrodošli u grupu! 🎉"
+)
+
+APPROVED_USER_UNTIL = (
+    "✅ <b>Odobreno!</b> Vaša uplata na <b>{brand}</b> je potvrđena.\n\n"
+    "Evo vaše osobne poveznice za {vip_name} (vrijedi 24 sata, jednokratna):\n"
+    "{invite}\n\n"
+    "Vaš pristup vrijedi do <b>{until}</b>."
 )
 
 APPROVED_NO_LINK = (
-    "✅ <b>Approved!</b> Your deposit on <b>{brand}</b> has been confirmed.\n\n"
-    "There was a problem generating your invite link — an admin will send it manually shortly."
+    "✅ <b>Odobreno!</b> Vaša uplata na <b>{brand}</b> je potvrđena.\n\n"
+    "Došlo je do pogreške pri izradi poveznice — administrator će vam je poslati ručno."
 )
 
 REJECTED_USER = (
-    "❌ Your screenshot for <b>{brand}</b> could not be verified.\n\n"
-    "Make sure the screenshot shows the deposit on an account registered "
-    "through our link. You can send a new one by tapping 🎰 Get VIP.{support}"
+    "❌ Vaš screenshot za <b>{brand}</b> nije bilo moguće potvrditi.\n\n"
+    "Provjerite da screenshot prikazuje uplatu na računu otvorenom putem naše poveznice. "
+    "Novi screenshot možete poslati tako da upišete /start.{support}"
 )
 
 VIP_EXPIRED = (
-    "⌛ Your free {days}-day access to {vip_name} has ended.\n\n"
-    "Tap 🎰 Get VIP to register with another partner brand and renew your access."
+    "⌛ Vaš besplatan pristup grupi {vip_name} je istekao.\n\n"
+    "Upišite /start za registraciju kod drugog partnera i obnovu pristupa."
 )
 
-SUPPORT_SUFFIX = "\n\nQuestions? Write to @{username}."
+SUPPORT_SUFFIX = "\n\nPitanja? Pišite na @{username}."
 
 ADMIN_ONLY = "This command is for admins only."
 
-# ---- admin side ----
+# ---- admin side (EN) ----
 
 ADMIN_REQUEST = (
     "🆕 <b>VIP request #{rid}</b>\n\n"
     "👤 {name} (<code>{user_id}</code>) {username}\n"
-    "🌍 Region: {region}\n"
+    "🌍 Country: {region}\n"
     "🎰 Brand: <b>{brand}</b>\n"
     "🔖 Source: {source}\n"
     "🕒 {created}"

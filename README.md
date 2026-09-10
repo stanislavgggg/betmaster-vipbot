@@ -1,13 +1,17 @@
-# VIP gate bot (BetsMaster flow)
+# BetCroatia VIP gate bot
 
-Telegram bot that reproduces the @BETSMASTER_VIP_BOT flow:
+Telegram bot gating a private VIP channel behind a partner registration + deposit.
 
 ```
-/start → 🎰 Get VIP → region → partner brand → tracked link + min deposit
+/start → greeting + country (Hrvatska / Ostalo)
+       → partner brand (Kingmaker, BetRepublic, Billybets, Trino, Immerion)
+       → tracked link + 30 € minimum deposit
        → user deposits and sends a screenshot
-       → admin group gets the screenshot with ✅ Approve / ❌ Reject
-       → approve = one-time invite link to the VIP channel + N days of access
+       → every admin chat gets it with ✅ Approve / ❌ Reject
+       → approve = one-time invite link to the VIP channel
 ```
+
+User-facing copy is Croatian (`texts.py`); the admin panel stays English.
 
 ## What's in the box
 
@@ -54,7 +58,9 @@ Everything lives in `brands.json`. A region lists brand codes, and can override 
 
 Change the file, push, then send `/reload` in the admin group — no redeploy needed.
 
-`free_days` under `vip` controls the free access period (30 = the "1-month free VIP" in the original bot).
+`free_days` under `vip` controls the access period. **`0` means access never expires** — that matches the "nema dodatnih plaćanja" promise, and the expiry watchdog stays idle. Set it to `30` to bring back a time-limited free month.
+
+`min_deposit` under `vip` is the figure shown in the partner-selection message; each brand can still override its own.
 
 ## Tracking
 

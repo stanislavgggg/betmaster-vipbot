@@ -97,7 +97,8 @@ class Catalog:
     def __init__(self, path: Path):
         self.path = path
         self.vip_name: str = "VIP"
-        self.free_days: int = 30
+        self.min_deposit: str = ""
+        self.free_days: int = 30  # 0 = access never expires
         self.regions: dict[str, Region] = {}
         self.load()
 
@@ -136,6 +137,7 @@ class Catalog:
             )
 
         self.vip_name = vip.get("name", "VIP")
+        self.min_deposit = vip.get("min_deposit", "")
         self.free_days = int(vip.get("free_days", 30))
         self.regions = regions
 

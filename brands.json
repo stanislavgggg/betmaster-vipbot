@@ -1,76 +1,70 @@
 {
   "vip": {
-    "name": "BETSMASTER VIP",
-    "free_days": 30
+    "name": "BetCroatia VIP",
+    "min_deposit": "30 €",
+    "free_days": 0
   },
   "brands": {
-    "slotoro": {
-      "name": "Slotoro",
-      "min_deposit": "20 EUR",
-      "link": "https://slotorooffer.com/l/691aea20f061e341f606f1f2",
+    "kingmaker": {
+      "name": "Kingmaker",
+      "min_deposit": "30 €",
+      "link": "https://hrk.hr/mrk/betrepublic",
       "subid_param": "sub1",
       "note": ""
     },
-    "ggbet": {
-      "name": "GGBet",
-      "min_deposit": "20 EUR",
-      "link": "https://ggbet-promo.com/l/67ff851dcb1c5065ae0ce725",
+    "betrepublic": {
+      "name": "BetRepublic",
+      "min_deposit": "30 €",
+      "link": "https://btrpc.kngpulse.com/?mid=361199_2244113",
       "subid_param": "sub1",
       "note": ""
     },
-    "spinbetter": {
-      "name": "SpinBetter",
-      "min_deposit": "20 EUR",
-      "link": "https://spinbetter.example/l/REPLACE_ME",
+    "billybets": {
+      "name": "Billybets",
+      "min_deposit": "30 €",
+      "link": "https://blbt.myloric.com/?mid=285966_2244112",
+      "subid_param": "sub1",
+      "note": ""
+    },
+    "trino": {
+      "name": "Trino",
+      "min_deposit": "30 €",
+      "link": "https://trinoplay.com/dbvyobfvc",
+      "subid_param": "sub1",
+      "note": ""
+    },
+    "immerion": {
+      "name": "Immerion",
+      "min_deposit": "30 €",
+      "link": "https://imrpromo.com/REPLACE_IMMERION",
       "subid_param": "sub1",
       "note": ""
     }
   },
   "regions": [
     {
-      "code": "eu",
-      "title": "Europe",
-      "emoji": "🇪🇺",
-      "brands": ["slotoro", "ggbet", "spinbetter"]
-    },
-    {
-      "code": "uk",
-      "title": "UK",
-      "emoji": "🇬🇧",
+      "code": "hr",
+      "title": "Hrvatska",
+      "emoji": "🇭🇷",
       "brands": [
-        "slotoro",
-        { "code": "ggbet", "link": "https://ggbet-promo.com/l/REPLACE_UK_LINK" }
+        "kingmaker",
+        "betrepublic",
+        "billybets",
+        "trino",
+        "immerion"
       ]
     },
     {
-      "code": "asia",
-      "title": "Asia",
-      "emoji": "🌏",
-      "brands": ["ggbet", "spinbetter"]
-    },
-    {
-      "code": "africa",
-      "title": "Africa",
-      "emoji": "🌍",
-      "brands": ["ggbet", "spinbetter"]
-    },
-    {
-      "code": "na",
-      "title": "North America",
-      "emoji": "🌎",
-      "brands": ["spinbetter"]
-    },
-    {
-      "code": "sa",
-      "title": "South America",
-      "emoji": "🌎",
-      "brands": ["spinbetter"]
-    },
-    {
       "code": "other",
-      "title": "Other",
-      "emoji": "🏳️",
-      "brands": ["ggbet", "spinbetter"]
+      "title": "Ostalo",
+      "emoji": "🌍",
+      "brands": [
+        "kingmaker",
+        "betrepublic",
+        "billybets",
+        "trino",
+        "immerion"
+      ]
     }
   ]
 }
