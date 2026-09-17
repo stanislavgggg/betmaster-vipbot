@@ -32,13 +32,6 @@
       "link": "https://trinoplay.com/dbvyobfvc",
       "subid_param": "sub1",
       "note": ""
-    },
-    "immerion": {
-      "name": "Immerion",
-      "min_deposit": "30 €",
-      "link": "https://imrpromo.com/afk0h5aljr",
-      "subid_param": "sub1",
-      "note": ""
     }
   },
   "regions": [
@@ -50,8 +43,7 @@
         "kingmaker",
         "betrepublic",
         "billybets",
-        "trino",
-        "immerion"
+        "trino"
       ]
     },
     {
@@ -62,8 +54,7 @@
         "kingmaker",
         "betrepublic",
         "billybets",
-        "trino",
-        "immerion"
+        "trino"
       ]
     }
   ]

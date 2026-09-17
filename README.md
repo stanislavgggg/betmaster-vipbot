@@ -4,7 +4,7 @@ Telegram bot gating a private VIP channel behind a partner registration + deposi
 
 ```
 /start → greeting + country (Hrvatska / Ostalo)
-       → partner brand (Kingmaker, BetRepublic, Billybets, Trino, Immerion)
+       → partner brand (Kingmaker, BetRepublic, Billybets, Trino)
        → tracked link + 30 € minimum deposit
        → user deposits and sends a screenshot
        → every admin chat gets it with ✅ Approve / ❌ Reject
