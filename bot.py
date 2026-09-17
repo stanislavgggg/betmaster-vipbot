@@ -60,6 +60,21 @@ async def safe_send(bot: Bot, chat_id: int, text: str, **kwargs) -> Message | No
     return None
 
 
+async def make_invite(bot: Bot, name: str) -> str | None:
+    """Personal one-time link; falls back to the static VIP_INVITE_LINK if the API refuses."""
+    try:
+        link = await bot.create_chat_invite_link(
+            settings.vip_chat_id,
+            name=name,
+            member_limit=1,
+            expire_date=datetime.now(tz=timezone.utc) + timedelta(hours=24),
+        )
+        return link.invite_link
+    except TelegramAPIError as exc:
+        log.error("Invite link '%s' failed: %s — falling back to the static link", name, exc)
+    return settings.vip_invite_link or None
+
+
 async def render_request_caption(request: store.Request) -> str:
     """Caption shown in every admin chat for a request."""
     user_row = await database.get_user(request.user_id)
@@ -347,17 +362,7 @@ async def grant_access(bot: Bot, request: store.Request) -> None:
     brand_name = catalog.brand_name(request.region, request.brand_code)
     until = await database.grant_vip(request.user_id, catalog.free_days)
 
-    invite = None
-    try:
-        link = await bot.create_chat_invite_link(
-            settings.vip_chat_id,
-            name=f"req{request.id}",
-            member_limit=1,
-            expire_date=datetime.now(tz=timezone.utc) + timedelta(hours=24),
-        )
-        invite = link.invite_link
-    except TelegramAPIError as exc:
-        log.error("Invite link for request #%s failed: %s", request.id, exc)
+    invite = await make_invite(bot, f"req{request.id}")
 
     if invite and until:
         text = t.APPROVED_USER_UNTIL.format(
@@ -545,25 +550,23 @@ async def cmd_grant(message: Message, command: CommandObject, bot: Bot) -> None:
     uid = int(parts[0])
     days = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else catalog.free_days
     until = await database.grant_vip(uid, days)
-    try:
-        link = await bot.create_chat_invite_link(
-            settings.vip_chat_id,
-            name=f"manual{uid}",
-            member_limit=1,
-            expire_date=datetime.now(tz=timezone.utc) + timedelta(hours=24),
-        )
-        await safe_send(
-            bot, uid,
-            (f"✅ VIP access granted until <b>{fmt_ts(until)}</b>.\n{link.invite_link}"
-             if until else f"✅ VIP access granted.\n{link.invite_link}"),
-            disable_web_page_preview=True,
-        )
+    invite = await make_invite(bot, f"manual{uid}")
+    if not invite:
         await message.answer(
-            f"Granted {'lifetime' if days <= 0 else str(days) + ' days'} "
-            f"to <code>{uid}</code>, invite sent."
+            "Granted, but no invite could be produced — "
+            "check the bot's admin rights in the VIP chat or set VIP_INVITE_LINK."
         )
-    except TelegramAPIError as exc:
-        await message.answer(f"Granted, but invite failed: {exc}")
+        return
+    await safe_send(
+        bot, uid,
+        (f"✅ VIP access granted until <b>{fmt_ts(until)}</b>.\n{invite}"
+         if until else f"✅ VIP access granted.\n{invite}"),
+        disable_web_page_preview=True,
+    )
+    await message.answer(
+        f"Granted {'lifetime' if days <= 0 else str(days) + ' days'} "
+        f"to <code>{uid}</code>, invite sent."
+    )
 
 
 @router.message(Command("revoke"))
