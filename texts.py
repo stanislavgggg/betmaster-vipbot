@@ -97,6 +97,11 @@ VIP_EXPIRED = (
 
 SUPPORT_SUFFIX = "\n\nPitanja? Pišite na @{username}."
 
+RELAYED = (
+    "📨 Vaša poruka je proslijeđena našem timu. "
+    "Odgovor ćete dobiti ovdje u chatu."
+)
+
 ADMIN_ONLY = "This command is for admins only."
 
 # ---- admin side (EN) ----
@@ -119,6 +124,8 @@ ADMIN_HELP = (
     "/pending — open requests awaiting review\n"
     "/user &lt;id&gt; — look up a user\n"
     "/note &lt;request_id&gt; &lt;text&gt; — message the user about a request\n"
+    "/msg &lt;user_id&gt; &lt;text&gt; — message any user by Telegram ID\n"
+    "↩️ <b>Reply</b> to a request card or a forwarded user message to chat with that user\n"
     "/grant &lt;user_id&gt; [days] — grant VIP manually\n"
     "/revoke &lt;user_id&gt; — end VIP access and remove from the channel\n"
     "/broadcast &lt;text&gt; — send to all users\n"

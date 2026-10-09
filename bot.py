@@ -7,15 +7,18 @@ Flow: /start -> region -> partner brand -> tracked link -> deposit screenshot
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.dispatcher.event.bases import SkipHandler
 from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from aiogram.filters import Command, CommandObject, CommandStart
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, ReactionTypeEmoji
 
 import db as store
 import keyboards as kb
@@ -48,6 +51,51 @@ def support_suffix() -> str:
     if settings.support_username:
         return t.SUPPORT_SUFFIX.format(username=settings.support_username)
     return ""
+
+
+ACK_EVERY = 15 * 60          # seconds between "message forwarded" notices per user
+_last_ack: dict[int, float] = {}
+
+
+def should_ack(user_id: int) -> bool:
+    nowts = time.monotonic()
+    if nowts - _last_ack.get(user_id, -ACK_EVERY) >= ACK_EVERY:
+        _last_ack[user_id] = nowts
+        return True
+    return False
+
+
+async def relay_to_admins(bot: Bot, message: Message) -> int:
+    """Forward a user's message to every admin chat. Admins answer by replying
+    to it; see on_admin_reply. Returns how many admin chats got it."""
+    user = message.from_user
+    if user is None:
+        return 0
+    await database.upsert_user(user.id, user.username, user.first_name, None)
+    open_reqs = await database.open_requests(user.id)
+    brands = ", ".join(
+        f"{catalog.brand_name(r.region, r.brand_code)} (#{r.id})" for r in open_reqs
+    ) or "no open request"
+    header = (
+        f"💬 <b>{html.escape(user.full_name)}</b> (<code>{user.id}</code>)"
+        f"{' @' + user.username if user.username else ''}\n"
+        f"📋 {brands}\n"
+        "<i>Reply to this message to answer.</i>"
+    )
+    delivered = 0
+    for chat_id in settings.admin_chat_ids:
+        try:
+            head = await bot.send_message(chat_id, header)
+            copy = await bot.copy_message(
+                chat_id, message.chat.id, message.message_id,
+                reply_to_message_id=head.message_id,
+            )
+            await database.add_relay(chat_id, head.message_id, user.id)
+            await database.add_relay(chat_id, copy.message_id, user.id)
+            delivered += 1
+        except TelegramAPIError as exc:
+            log.warning("Could not relay message from %s to %s: %s", user.id, chat_id, exc)
+    return delivered
 
 
 async def safe_send(bot: Bot, chat_id: int, text: str, **kwargs) -> Message | None:
@@ -260,6 +308,9 @@ async def cb_brand_selected(call: CallbackQuery) -> None:
                                   reply_markup=kb.regions_kb(catalog.regions))
         return
 
+    await database.upsert_user(
+        call.from_user.id, call.from_user.username, call.from_user.first_name, None
+    )
     user_row = await database.get_user(call.from_user.id)
     source = user_row["source"] if user_row else None
     user_id = call.from_user.id
@@ -312,6 +363,39 @@ async def cb_cancel(call: CallbackQuery) -> None:
     await call.message.answer(t.CANCELLED.format(count=count), reply_markup=kb.main_menu(catalog.regions))
 
 
+# --------------------------------------------------------------------------- admin <-> user chat
+
+def _not_a_command(message: Message) -> bool:
+    return not (message.text or message.caption or "").startswith("/")
+
+
+@router.message(F.reply_to_message, F.from_user.id.in_(settings.admin_ids), _not_a_command)
+async def on_admin_reply(message: Message, bot: Bot) -> None:
+    """An admin replied to a request card or a forwarded user message: pass the
+    reply (text, photo, voice, ...) on to that user from the bot."""
+    replied = message.reply_to_message
+    target = await database.relay_user(message.chat.id, replied.message_id)
+    if target is None:
+        rid = await database.request_for_admin_message(message.chat.id, replied.message_id)
+        request = await database.get_request(rid) if rid else None
+        target = request.user_id if request else None
+    if target is None:
+        raise SkipHandler  # an ordinary reply, nothing to do with a user
+
+    try:
+        await bot.copy_message(target, message.chat.id, message.message_id)
+    except TelegramForbiddenError:
+        await message.reply("⚠️ Not delivered — the user blocked the bot.")
+        return
+    except TelegramAPIError as exc:
+        await message.reply(f"⚠️ Not delivered: {exc}")
+        return
+    try:
+        await message.react([ReactionTypeEmoji(emoji="👍")])
+    except TelegramAPIError:
+        await message.reply("✅ Sent")
+
+
 # --------------------------------------------------------------------------- screenshots
 
 @router.message(F.chat.type == "private", F.photo | F.document.mime_type.startswith("image/"))
@@ -320,9 +404,16 @@ async def on_screenshot(message: Message, bot: Bot) -> None:
     if user is None:
         return
 
+    await database.upsert_user(user.id, user.username, user.first_name, None)
     request = await database.next_awaiting(user.id)
     if request is None:
-        await message.answer(t.NO_PENDING_FOR_PHOTO, reply_markup=kb.main_menu(catalog.regions))
+        if is_admin(user.id):
+            await message.answer(t.NO_PENDING_FOR_PHOTO, reply_markup=kb.main_menu(catalog.regions))
+        elif await relay_to_admins(bot, message):
+            if should_ack(user.id):
+                await message.answer(t.RELAYED, reply_markup=kb.main_menu(catalog.regions))
+        else:
+            await message.answer(t.NO_PENDING_FOR_PHOTO, reply_markup=kb.main_menu(catalog.regions))
         return
 
     file_id = message.photo[-1].file_id if message.photo else message.document.file_id
@@ -342,18 +433,46 @@ async def on_screenshot(message: Message, bot: Bot) -> None:
 
 
 @router.message(F.chat.type == "private", F.text, ~F.text.startswith("/"))
-async def on_text(message: Message) -> None:
-    if message.from_user is None:
+async def on_text(message: Message, bot: Bot) -> None:
+    user = message.from_user
+    if user is None:
         return
-    pending = await database.next_awaiting(message.from_user.id)
-    if pending:
-        await message.answer(
-            t.PENDING_HINT.format(
-                brand=catalog.brand_name(pending.region, pending.brand_code)
-            )
-        )
-    else:
+    if is_admin(user.id):
         await send_main_menu(message)
+        return
+
+    relayed = await relay_to_admins(bot, message)
+    pending = await database.next_awaiting(user.id)
+    if not relayed:
+        # nobody could be reached — fall back to the old behaviour
+        if pending:
+            await message.answer(
+                t.PENDING_HINT.format(
+                    brand=catalog.brand_name(pending.region, pending.brand_code)
+                )
+            )
+        else:
+            await send_main_menu(message)
+        return
+    if should_ack(user.id):
+        if pending:
+            await message.answer(
+                t.RELAYED + "\n\n" + t.PENDING_HINT.format(
+                    brand=catalog.brand_name(pending.region, pending.brand_code)
+                )
+            )
+        else:
+            await message.answer(t.RELAYED, reply_markup=kb.main_menu(catalog.regions))
+
+
+@router.message(F.chat.type == "private", ~F.text)
+async def on_other_content(message: Message, bot: Bot) -> None:
+    """Voice notes, videos, documents, stickers... — pass them to the admins too."""
+    user = message.from_user
+    if user is None or is_admin(user.id):
+        return
+    if await relay_to_admins(bot, message) and should_ack(user.id):
+        await message.answer(t.RELAYED, reply_markup=kb.main_menu(catalog.regions))
 
 
 # --------------------------------------------------------------------------- review
@@ -537,6 +656,18 @@ async def cmd_note(message: Message, command: CommandObject, bot: Bot) -> None:
         return
     sent = await safe_send(bot, request.user_id, f"💬 {parts[1]}")
     await message.answer("Sent." if sent else "Could not deliver (user blocked the bot?).")
+
+
+@router.message(Command("msg"))
+async def cmd_msg(message: Message, command: CommandObject, bot: Bot) -> None:
+    if not is_admin(message.from_user.id if message.from_user else None):
+        return
+    parts = (command.args or "").split(maxsplit=1)
+    if len(parts) < 2 or not parts[0].isdigit():
+        await message.answer("Usage: /msg &lt;user_id&gt; &lt;message&gt;")
+        return
+    sent = await safe_send(bot, int(parts[0]), f"💬 {parts[1]}")
+    await message.answer("Sent." if sent else "Could not deliver (user never started the bot, or blocked it).")
 
 
 @router.message(Command("grant"))

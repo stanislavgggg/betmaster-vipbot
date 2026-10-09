@@ -48,6 +48,13 @@ CREATE TABLE IF NOT EXISTS admin_messages (
     PRIMARY KEY (request_id, chat_id)
 );
 
+CREATE TABLE IF NOT EXISTS relay_messages (
+    chat_id    INTEGER NOT NULL,
+    message_id INTEGER NOT NULL,
+    user_id    INTEGER NOT NULL,
+    PRIMARY KEY (chat_id, message_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_requests_user   ON requests(user_id, status);
 CREATE INDEX IF NOT EXISTS idx_requests_status ON requests(status);
 """
@@ -111,6 +118,15 @@ class Database:
         )
         await self.conn.commit()
 
+    async def ensure_user(self, user_id: int) -> None:
+        """Create a bare user row if none exists (e.g. after a DB reset), so VIP
+        expiry and lookups always have a row to work with."""
+        await self.conn.execute(
+            "INSERT OR IGNORE INTO users (user_id, created_at) VALUES (?, ?)",
+            (user_id, now()),
+        )
+        await self.conn.commit()
+
     async def get_user(self, user_id: int) -> aiosqlite.Row | None:
         cur = await self.conn.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
         return await cur.fetchone()
@@ -121,6 +137,7 @@ class Database:
 
     async def grant_vip(self, user_id: int, days: int) -> int | None:
         """days <= 0 grants access with no expiry date."""
+        await self.ensure_user(user_id)
         if days <= 0:
             await self.conn.execute(
                 "UPDATE users SET vip_until = NULL, vip_active = 1 WHERE user_id = ?", (user_id,)
@@ -227,6 +244,31 @@ class Database:
             "SELECT chat_id, message_id FROM admin_messages WHERE request_id = ?", (request_id,)
         )
         return [(r["chat_id"], r["message_id"]) for r in await cur.fetchall()]
+
+    async def request_for_admin_message(self, chat_id: int, msg_id: int) -> int | None:
+        cur = await self.conn.execute(
+            "SELECT request_id FROM admin_messages WHERE chat_id = ? AND message_id = ?",
+            (chat_id, msg_id),
+        )
+        row = await cur.fetchone()
+        return row["request_id"] if row else None
+
+    async def add_relay(self, chat_id: int, msg_id: int, user_id: int) -> None:
+        """Remember which user an admin-side message belongs to, so an admin
+        reply to it can be routed back to that user."""
+        await self.conn.execute(
+            "INSERT OR REPLACE INTO relay_messages (chat_id, message_id, user_id) VALUES (?, ?, ?)",
+            (chat_id, msg_id, user_id),
+        )
+        await self.conn.commit()
+
+    async def relay_user(self, chat_id: int, msg_id: int) -> int | None:
+        cur = await self.conn.execute(
+            "SELECT user_id FROM relay_messages WHERE chat_id = ? AND message_id = ?",
+            (chat_id, msg_id),
+        )
+        row = await cur.fetchone()
+        return row["user_id"] if row else None
 
     async def decide(self, request_id: int, status: str, admin_id: int) -> None:
         await self.conn.execute(

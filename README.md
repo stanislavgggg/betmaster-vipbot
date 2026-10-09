@@ -100,3 +100,10 @@ Set `subid_param` per brand if a network uses a different parameter name (`sub_i
 
 - Postback endpoint so an FTD from the network auto-approves the request — screenshots are trivially faked, and right now approval rests on a human eyeballing an image.
 - Rejection reason buttons (wrong brand / no deposit visible / not our link) if volume grows past what `/note` handles comfortably.
+
+## Chatting with users from the bot
+
+- Anything a user writes to the bot (text, photo, voice, file) is forwarded to the admin chat(s) with their name, ID and open requests.
+- **Reply** to that forwarded message — or to a VIP request card — and the bot sends your reply to the user. A 👍 reaction means it was delivered.
+- `/msg <user_id> <text>` messages any user by ID; `/note <request_id> <text>` does the same via a request.
+- Replies are matched through the database, so keep `DB_PATH` on a persistent volume.
